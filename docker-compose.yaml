@@ -1,0 +1,44 @@
+version: '3.7'
+
+services:
+  traefik:
+    image: traefik:v2.10.4
+    command:
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedByDefault=false"
+      - "--api.insecure=true"
+      - "--certificatesResolvers.myresolver.acme.email=ragaslagnad28@email.com"
+      - "--certificatesResolvers.myresolver.acme.storage=/acme.json"
+      - "--certificatesResolvers.myresolver.acme.httpChallenge.entryPoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./acme.json:/acme.json
+    labels:
+       - "traefik.enable=true"
+  
+      # For HTTP (which will redirect to HTTPS due to our middleware)
+       - "traefik.http.routers.traefik-dash.rule=Host(`${HOST_FROM_ENV}`)"
+       - "traefik.http.routers.traefik-dash.middlewares=redirect-to-https"
+  
+      # For HTTPS
+       - "traefik.http.routers.traefik-dash-secure.entrypoints=websecure"
+       - "traefik.http.routers.traefik-dash-secure.rule=Host(`${HOST_FROM_ENV}`)"
+       - "traefik.http.routers.traefik-dash-secure.tls=true"
+       - "traefik.http.routers.traefik-dash-secure.tls.certresolver=myresolver"
+       - "traefik.http.routers.traefik-dash-secure.service=api@internal"
+       - "traefik.http.routers.traefik-websecure.middlewares=auth-basic"
+
+         # Middleware for HTTP to HTTPS redirection
+      
+       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+       - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+       -  "traefik.http.middlewares.auth-basic.basicauth.users=user:hashed_password"
+
+ 
